@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PronttoGo - Catálogo Inteligente</title>
+    
+    <!-- Meta etiquetas para SEO Mobile-First -->
+    <meta name="description" content="Catálogo inteligente de compras en línea impulsado por PronttoGo y Montero Studio.">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- Tailwind CSS (Usando CDN Play para desarrollo rápido/prototipado sin build step) -->
+    <!-- En un entorno Vite de producción, esto sería reemplazado por un import a tu index.css -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts para una tipografía moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Estilos base y variables dinámicas */
+        :root {
+            --color-corporativo: #3b82f6; /* Color por defecto, será sobreescrito por JS */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Slate 50 de Tailwind, fondo súper limpio */
+        }
+        
+        /* Animaciones para UX Premium */
+        .carrito-flotante {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .carrito-flotante.oculto {
+            transform: translateY(150%);
+        }
+        
+        .producto-card {
+            transition: all 0.3s ease;
+        }
+        .producto-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Estilo para los botones que usan la variable de color corporativo */
+        .bg-corporativo { background-color: var(--color-corporativo); }
+        .text-corporativo { color: var(--color-corporativo); }
+        .border-corporativo { border-color: var(--color-corporativo); }
+        .hover-bg-corporativo:hover { background-color: var(--color-corporativo); color: white; }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col min-h-screen relative pb-28">
+
+    <!-- Header Dinámico y Limpio -->
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-100">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between h-16">
+            <div class="flex items-center gap-3 animate-fade-in">
+                <!-- Se mostrará el logo si existe, o el texto en caso contrario -->
+                <img id="logo-negocio" src="" alt="Logo" class="h-10 w-auto object-contain hidden rounded shadow-sm">
+                <h1 id="nombre-negocio" class="text-xl font-bold text-gray-900 tracking-tight">Cargando...</h1>
+            </div>
+            <!-- Aquí podrías poner un botón de menú o perfil en el futuro -->
+        </div>
+    </header>
+
+    <!-- Contenedor Principal (Catálogo) -->
+    <main class="flex-grow max-w-4xl mx-auto px-4 py-8 w-full" id="contenedor-categorias">
+        <!-- Esqueleto de carga inicial -->
+        <div class="flex flex-col gap-6 animate-pulse" id="loader">
+            <div class="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="h-32 bg-gray-200 rounded-xl"></div>
+                <div class="h-32 bg-gray-200 rounded-xl"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Barra Flotante Carrito (Mobile-First y Fija) -->
+    <div id="carrito-flotante" class="carrito-flotante oculto fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.1)] p-4 sm:p-5 z-50 rounded-t-2xl">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex flex-col">
+                <span class="text-sm text-gray-500 font-medium">Total de la orden:</span>
+                <span class="text-2xl sm:text-3xl font-bold text-gray-900" id="total-carrito">$0.00</span>
+            </div>
+            <button id="btn-enviar-orden" class="bg-corporativo text-white px-6 py-3 sm:px-8 sm:py-3.5 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2 active:scale-95">
+                Enviar WhatsApp
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer Institucional -->
+    <footer class="bg-gray-900 text-gray-400 text-center py-6 mt-auto">
+        <p class="text-sm font-medium">⚡ Powered by <span class="text-white">PronttoGo®</span></p>
+        <p class="text-xs mt-1 opacity-70">Una plataforma inteligente de Montero Studio</p>
+    </footer>
+
+    <!-- Lógica JavaScript Modular Nativa (Vanilla JS) -->
+    <script>
+        // --- 1. Estado Global ---
+        const estado = {
+            negocio: null,
+            categorias: [],
+            carrito: {} // { 'id-producto': { item: Producto, cantidad: Number } }
+        };
+
+        // --- 2. Inicialización y Fetch (Async/Await) ---
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        async function initApp() {
+            try {
+                // Fetch al backend (Asegúrate de que las rutas coincidan)
+                const respuesta = await fetch('/api/productos.php');
+                
+                if (!respuesta.ok) {
+                    throw new Error(`HTTP error! status: ${respuesta.status}`);
+                }
+                
+                const datos = await respuesta.json();
+                
+                if (datos.error) {
+                    throw new Error(datos.error);
+                }
+
+                estado.negocio = datos.negocio;
+                estado.categorias = datos.categorias;
+
+                configurarUI();
+                renderizarCatalogo();
+                
+            } catch (error) {
+                console.error("Error al cargar los datos:", error);
+                document.getElementById('contenedor-categorias').innerHTML = 
+                    `<div class="bg-red-50 text-red-600 p-4 rounded-xl text-center shadow-sm">
+                        <p class="font-bold">¡Oops! Algo salió mal.</p>
+                        <p class="text-sm">No pudimos conectar con el servidor. Por favor recarga la página.</p>
+                    </div>`;
+            }
+        }
+
+        // --- 3. Renderizado y UI ---
+        function configurarUI() {
+            const { nombre, logo_url, color_corporativo } = estado.negocio;
+            
+            // Textos y Logos
+            const h1 = document.getElementById('nombre-negocio');
+            const img = document.getElementById('logo-negocio');
+            
+            document.title = `${nombre} | PronttoGo`;
+            h1.textContent = nombre;
+            
+            if (logo_url && logo_url.trim() !== '') {
+                img.src = logo_url;
+                img.classList.remove('hidden');
+                h1.classList.add('hidden'); // Priorizar el logo visualmente
+            }
+
+            // Inyectar el color corporativo en las variables CSS
+            if (color_corporativo) {
+                document.documentElement.style.setProperty('--color-corporativo', color_corporativo);
+            }
+        }
+
+        function renderizarCatalogo() {
+            const contenedor = document.getElementById('contenedor-categorias');
+            contenedor.innerHTML = ''; // Quitar el loader
+
+            if (!estado.categorias || estado.categorias.length === 0) {
+                contenedor.innerHTML = '<p class="text-center text-gray-500 my-10">No hay productos disponibles por el momento.</p>';
+                return;
+            }
+
+            estado.categorias.forEach(categoria => {
+                // Evitar renderizar categorías vacías
+                if (!categoria.productos || categoria.productos.length === 0) return;
+
+                // Crear contenedor de categoría
+                const section = document.createElement('section');
+                section.className = 'mb-10';
+                
+                // Título de la categoría
+                section.innerHTML = `
+                    <div class="flex items-center gap-3 mb-5">
+                        <h2 class="text-2xl font-bold text-gray-900">${categoria.categoria_nombre}</h2>
+                        <div class="h-px bg-gray-200 flex-grow"></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="grid-${categoria.categoria_id}"></div>
+                `;
+                contenedor.appendChild(section);
+
+                const grid = section.querySelector(`#grid-${categoria.categoria_id}`);
+
+                // Renderizar cada producto de esta categoría
+                categoria.productos.forEach(producto => {
+                    const article = document.createElement('article');
+                    article.className = 'producto-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-4 overflow-hidden';
+                    
+                    const precioFormat = parseFloat(producto.precio).toFixed(2);
+                    // Si no tiene imagen, mostramos un placeholder amigable
+                    const imagen = producto.imagen_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(producto.nombre)}&background=random&size=150`;
+
+                    article.innerHTML = `
+                        <div class="w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
+                            <img src="${imagen}" alt="${producto.nombre}" class="w-full h-full object-cover rounded-xl shadow-inner">
+                        </div>
+                        <div class="flex-grow flex flex-col justify-between py-1">
+                            <div>
+                                <h3 class="font-bold text-gray-900 text-base sm:text-lg leading-tight mb-1">${producto.nombre}</h3>
+                                <p class="text-xs sm:text-sm text-gray-500 line-clamp-2">${producto.descripcion || ''}</p>
+                            </div>
+                            
+                            <div class="flex items-center justify-between mt-3">
+                                <span class="font-bold text-lg text-corporativo">$${precioFormat}</span>
+                                
+                                <!-- Controles Carrito Inteligente -->
+                                <div class="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full px-1 py-1 shadow-inner">
+                                    <button class="btn-restar w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-corporativo hover:bg-white hover:shadow transition-all font-bold" data-id="${producto.id}">-</button>
+                                    <span class="font-semibold text-gray-800 min-w-[1.25rem] text-center text-sm" id="cant-${producto.id}">0</span>
+                                    <button class="btn-sumar w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-corporativo hover:bg-white hover:shadow transition-all font-bold" data-id="${producto.id}">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(article);
+                });
+            });
+
+            // Delegación de eventos para rendimiento
+            asignarEventos();
+        }
+
+        // --- 4. Lógica del Carrito ---
+        function asignarEventos() {
+            // Usamos delegación de eventos o eventos directos
+            document.querySelectorAll('.btn-sumar').forEach(btn => {
+                btn.addEventListener('click', (e) => actualizarCarrito(e.target.dataset.id, 1));
+            });
+            document.querySelectorAll('.btn-restar').forEach(btn => {
+                btn.addEventListener('click', (e) => actualizarCarrito(e.target.dataset.id, -1));
+            });
+            
+            // Evento de Envío
+            document.getElementById('btn-enviar-orden').addEventListener('click', procesarOrden);
+        }
+
+        function buscarProducto(id) {
+            for (let c of estado.categorias) {
+                let p = c.productos.find(prod => prod.id == id);
+                if (p) return p;
+            }
+            return null;
+        }
+
+        function actualizarCarrito(id, delta) {
+            const producto = buscarProducto(id);
+            if (!producto) return;
+
+            // Inicializar si no existe
+            if (!estado.carrito[id]) {
+                estado.carrito[id] = { item: producto, cantidad: 0 };
+            }
+
+            estado.carrito[id].cantidad += delta;
+
+            // Validar límites
+            if (estado.carrito[id].cantidad <= 0) {
+                delete estado.carrito[id];
+                document.getElementById(`cant-${id}`).textContent = '0';
+            } else {
+                document.getElementById(`cant-${id}`).textContent = estado.carrito[id].cantidad;
+            }
+
+            refrescarBarraFlotante();
+        }
+
+        function refrescarBarraFlotante() {
+            let total = 0;
+            let cantidadTotal = 0;
+
+            for (const key in estado.carrito) {
+                const prodCarrito = estado.carrito[key];
+                total += parseFloat(prodCarrito.item.precio) * prodCarrito.cantidad;
+                cantidadTotal += prodCarrito.cantidad;
+            }
+
+            // Animar el total
+            const elTotal = document.getElementById('total-carrito');
+            elTotal.textContent = `$${total.toFixed(2)}`;
+
+            const barra = document.getElementById('carrito-flotante');
+            
+            if (cantidadTotal > 0) {
+                barra.classList.remove('oculto');
+            } else {
+                barra.classList.add('oculto');
+            }
+        }
+
+        // --- 5. Checkout Inteligente (WhatsApp API) ---
+        function procesarOrden() {
+            if (Object.keys(estado.carrito).length === 0) return;
+
+            const { nombre, telefono_whatsapp } = estado.negocio;
+            let totalGeneral = 0;
+            
+            // Construcción del ticket
+            let texto = `👋 ¡Hola! Me gustaría hacer un pedido en *${nombre}*\n\n`;
+            texto += `🛒 *Mi Orden:*\n`;
+            texto += `-----------------------------------\n`;
+
+            for (const key in estado.carrito) {
+                const { item, cantidad } = estado.carrito[key];
+                const subtotal = parseFloat(item.precio) * cantidad;
+                totalGeneral += subtotal;
+                
+                texto += `▪️ ${cantidad}x *${item.nombre}*\n`;
+                texto += `   └ $${subtotal.toFixed(2)}\n`;
+            }
+
+            texto += `-----------------------------------\n`;
+            texto += `💰 *TOTAL A PAGAR: $${totalGeneral.toFixed(2)}*\n\n`;
+            texto += `✅ ¡Ya tengo todo listo! Por favor, envíenme los datos para realizar el Pago Móvil o Zelle. Quedo atento/a.`;
+
+            // Formatear para URL
+            const mensajeEncodeado = encodeURIComponent(texto);
+            const numeroEnvio = telefono_whatsapp || "584120000000"; // Fallback de seguridad
+            
+            // Abrir link nativo de WhatsApp
+            const urlWhatsApp = `https://wa.me/${numeroEnvio}?text=${mensajeEncodeado}`;
+            window.open(urlWhatsApp, '_blank');
+        }
+    </script>
+</body>
+</html>
