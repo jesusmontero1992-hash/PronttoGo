@@ -7,11 +7,11 @@
  */
 
 // Credenciales de Supabase (Reemplazar con tus datos)
-$host = 'db.agfhvywwbnliwoedxlxs.supabase.co'; // HOST
-$db_name = 'postgres';                            // DB_NAME
-$user = 'postgres';                               // USER 
-$password = 'DevMontero#26'; // PASSWORD (La que creaste en el paso 1)
-$port = '5432';                                   // PORT
+$host = 'aws-0-us-east-1.pooler.supabase.com'; // HOST (Pooler)
+$db_name = 'postgres';                             // DB_NAME
+$user = 'postgres.pusrebyszbtyefcjmvsh';           // USER (Pooler user)
+$password = 'DevMontero#26';                       // PASSWORD
+$port = '6543';                                    // PORT (Pooler port)
 
 try {
     // DSN (Data Source Name) adaptado para PostgreSQL
