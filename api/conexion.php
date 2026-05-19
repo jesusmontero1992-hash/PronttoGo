@@ -7,7 +7,7 @@
  */
 
 // Credenciales de Supabase (Reemplazar con tus datos)
-$host = 'aws-0-us-east-1.pooler.supabase.com'; // HOST (Pooler)
+$host = 'aws-1-us-east-1.pooler.supabase.com'; // HOST (Pooler)
 $db_name = 'postgres';                             // DB_NAME
 $user = 'postgres.pusrebyszbtyefcjmvsh';           // USER (Pooler user)
 $password = 'DevMontero#26';                       // PASSWORD
@@ -23,8 +23,8 @@ try {
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION, 
         // Retornar siempre resultados como arrays asociativos para fácil conversión a JSON
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,       
-        // Desactivar emulación de preparadas para evitar Inyecciones SQL (seguridad)
-        PDO::ATTR_EMULATE_PREPARES   => false,                  
+        // IMPORTANTE: Habilitar emulación de preparadas para compatibilidad con Supavisor (puerto 6543)
+        PDO::ATTR_EMULATE_PREPARES   => true,                  
     ];
 
     // Instancia de la conexión PDO
